@@ -1,0 +1,458 @@
+---
+title: "Brewin Meta Analysis"
+author: "Andy P. Field"
+date: '`r format(Sys.Date(), "%d %B %Y")`'
+format:
+  docx:
+    reference-doc: apa_pandoc.docx
+    prefer-html: true
+    execute:
+      echo: false
+knitr: 
+  opts_chunk: 
+    message: false
+    warning: false
+bibliography: references.yaml
+---
+
+```{r}
+# Load packages
+
+library(broom)
+library(forcats)
+library(here)
+library(kableExtra)
+library(meta)
+library(metafor)
+library(patchwork)
+#library(stringr)
+library(tidyverse)
+
+
+# Load helper functions
+here("quarto/meta_helpers.R") |>  source()
+```
+
+```{r import_data}
+ma_tib <- here("data/brewin_raw_data_2023_12_15.csv") |> 
+  read_csv() |> 
+  mutate(
+    across(.cols = c(measure:age, ptsd_measure), .fn = ~as_factor(.x)),
+    direction = ifelse(clinical_mean-control_mean >= 0, "+", "-"), # convenience variable to check the direction of the mean difference
+    clinical_sd = ifelse(author == "Hagenaars et al. (2009)", clinical_sd*sqrt(clinical_n), clinical_sd),
+    control_sd = ifelse(author == "Hagenaars et al. (2009)", control_sd*sqrt(control_n), control_sd), # convert reported SDs (which are actually SEs) to actual SDs for Hagenaars study
+    foa_gp = ifelse(foa == "FOA" & foa_type == "Detailed", "FOA (Detailed)",
+                    ifelse(foa == "FOA" & foa_type == "Global", "FOA (Global)",
+                           ifelse(high_disorganization_is == "High score", "Not FOA (Disorganisation)", "Not FOA (Organisation)"))) |>
+      forcats::as_factor() |> forcats::fct_relevel("FOA (Detailed)", "FOA (Global)", "Not FOA (Disorganisation)", "Not FOA (Organisation)"),
+    global_vs_detail = ifelse(foa_gp == "FOA (Global)", 1, 0), # create dummy variables
+    dis_vs_detail = ifelse(foa_gp == "Not FOA (Disorganisation)", 1, 0),
+    org_vs_detail = ifelse(foa_gp == "Not FOA (Organisation)", 1, 0)
+    )
+
+# Compute effect sizes
+
+es_tib <- metafor::escalc(measure = "SMD",
+                vtype = "UB",
+                n1i = clinical_n,
+                n2i = control_n,
+                m1i = clinical_mean,
+                m2i = control_mean,
+                sd1i = clinical_sd,
+                sd2i = control_sd,
+                ti = t,
+                slab = author,
+                var.names = c("g", "v_g"),
+                data = ma_tib) |> 
+  as_tibble() |> 
+  mutate(
+    n_total = ifelse(is.na(clinical_n) | is.na(control_n), n_for_r, clinical_n + control_n),
+    ptsd_sd_all = ifelse(is.na(ptsd_sd_all), pooled_var(nx = clinical_n, ny = control_n, sdx = ptsd_sd_clin, sdy = ptsd_sd_ctrl, ux = ptsd_mean_clin, uy = ptsd_mean_ctrl, sd = T), ptsd_sd_all), # estimate overall SD of PTSD measure
+    ptsd_diff = ptsd_mean_clin-ptsd_mean_ctrl,
+    d_r = ifelse(!is.na(ptsd_diff), d_from_r(delta = ptsd_diff, sx = ptsd_sd_all, r = r, biserial = FALSE), d_from_r(r = r, biserial = TRUE)), # converts r to d based on whether we have enough info to treat PTSD as a continuous measure
+    g = ifelse(is.na(g), d_to_g(n = n_total, d = d_r), g), # apply hedges correction to the ds computed above
+    g = ifelse(high_disorganization_is == "Low score", -g, g), #flip direction of g for reversed scales
+    v_g = ifelse(is.na(v_g), 
+                 ifelse(!is.na(ptsd_diff),
+                        var_d_from_r(n = n_total, r = r, d = g, biserial = FALSE), 
+                        var_d_from_r(n = n_total, r = r, biserial = TRUE)),
+                 v_g), # calculates sampling variance for ds based on r
+    se_g = sqrt(v_g) # calculates standard error of g,
+    )
+
+# summarize from where the effect size originates
+
+es_from <- es_tib |> 
+  mutate(
+    es_from = ifelse(!is.na(clinical_mean) & !is.na(clinical_sd) & !is.na(control_mean) & !is.na(control_sd), "From means/SDs",
+                     ifelse(!is.na(t), "From t", ifelse(
+      !is.na(r) & !is.na(ptsd_diff), "From r (continuous)", 
+      ifelse(!is.na(r) & is.na(ptsd_diff), "From r (point biserial)", "Info unavailable")))) 
+    ) |> 
+  group_by(es_from) |> 
+  summarize(
+    n = n()
+  )
+
+ptsd_difference <- es_tib |> 
+  filter(!is.na(r) & !is.na(ptsd_diff) & is.na(clinical_mean)) |> 
+  summarize(
+    n = n(),
+    mean_diff = mean(ptsd_diff),
+    mean_sd = mean(ptsd_sd_all)
+  )
+```
+
+
+## Methods
+## Analysis plan
+
+All analyses were conducted using R 4.3.1 [@base], using the packages metafor [@metafor], meta [@meta], and tidyverse [@tidyverse] for general data wrangling.
+
+### Effect Sizes
+
+Effect sizes were estimated for all self-report or judge-rated variables identified by study authors as assessing incoherence or disorganisation are included, along with all available contemporaneous measures of ASD/PTSD.[^1] Effects that re-expressed existing effects in an alternative form were omitted. For example, where difference between ASD/PTSD and control group mean disorganisation was accompanied by the correlation between the ASD/PTSD and disorganization measures, only the effect size for the group means would be included because these effects carry essentially the same information. Effect sizes from computer-scored measures were not included because these have been criticised (rightly) as lacking any evidence of validity, face or any other kind.
+
+[^1]: The original effect size from @hagenaars2009 was implausibly large ($g > 4$). The authors confirmed our suspicion that the reported standard deviations were standard errors so the reported values converted to standard deviations.
+
+The standardised mean difference, $g$ [@hedges1981], was used as the effect size metric. This is an unbiased estimator of Cohen's $d$ [@cohen1988] calculated using the number of participants in each group ($n_1$ and $n_2$), the mean score for each group ($\overline{X}_1$ and $\overline{X}_2$) and the standard deviation for each group ($s_1$ and $s_2$):
+
+$$
+\begin{aligned}
+d &= \frac{\overline{X}_1-\overline{X}_2}{\sqrt{\frac{(n_1-1)s_1^2 + (n_2-1)s_2^2}{n_1 + n_2 -2}}}
+\end{aligned}
+$$
+
+The sampling variance of $d$ is
+
+$$
+SE_d = \sqrt{\frac{n_1+n_2}{n_1n_2} + \frac{d^2}{2(n_1+n_2}}.
+$$
+
+Of the `r sum(es_from$n)` effect sizes, `r es_from$n[1]` could be computed from reported means and standard deviations, `r es_from$n[4]` were converted from reported *t*-statistics of group differences, and `r es_from$n[2] + es_from$n[3]` were converted from reported correlation coefficients. When a correlation coefficient had to be used, where the relevant descriptive information was available the formulae for the effect size and its standard error in @mathur2020 was use ($k$ = `r es_from$n[2]`),
+
+$$
+\begin{aligned}
+d &= \frac{r\Delta}{s_x\sqrt{1-r^2}} \\
+\widehat{SE}_d &=  |d|\sqrt{\frac{1}{r^2(N-3)} + \frac{1}{2(N-1)}}
+\end{aligned}
+$$
+
+which expresses the effect in terms of the change in disorganization resulting from an increase in the continuous measures of PTSD of $\Delta$ units. To make the resulting $d$ comparable to studies for which $d$ represents differences between PTSD groups, $\Delta$ was set to be the difference between mean PTSD scores in PTSD and control groups. To apply this formula, the standard deviation of the PTSD measure ($s_x$) for the entire sample is required. Articles that did not report descriptive information for the PTSD measure for the entire sample did report it for PTSD and control subgroups allowing the whole sample variance ($s^2_\text{combined}$) to be estimated using the standard formula [see @oneill2014]: 
+
+$$ 
+s^2_\text{combined} = \frac{1}{n_1 + n_2-1}\bigg[(n_1-1)s_1^2 + (n_2-1)s_2^2 + \frac{n_1n_2}{n_1 + n_2}(\bar{x}_1-\bar{x}_2)^2\bigg]
+$$
+
+in which $n_1$, $\bar{x}_1$ and $s_1^2$ are the sample size, mean and standard deviation of the PTSD measure for the PTSD group and $n_2$, $\bar{x}_2$ and $s_2^2$ are the corresponding values for the control group. Where this information was not available the formulae to convert a point biserial correlation was used ($k$ =
+`r es_from$n[3]`), 
+
+$$
+\begin{aligned}
+d &= \frac{2r}{\sqrt{1-r^2}} \\
+\widehat{SE}_d &=  \frac{2}{\sqrt{(N-1)(1-r^2)}}.
+\end{aligned}
+$$
+
+In effect, this is the same as applying the equation in @mathur2020 but with $\Delta = 2s_x$. In other words, it will yield the same value as the equation used for a continuous measure if PTSD and control groups had a mean difference on a continuous PTSD measure of about 2 standard deviations. [^2]
+
+[^2]: For the $k$ = `r es_from$n[2]` effect sizes where descriptive information about the PTSD measure was available, the average mean difference was `r fmtx(ptsd_difference$mean_diff, digits = 2)` with an average standard deviation of `r fmtx(ptsd_difference$mean_sd, digits = 2)` yielding a ratio of `r fmtx(ptsd_difference$mean_diff/ptsd_difference$mean_sd, digits = 2)`. The implication being for the $k$ = `r es_from$n[3]` effect sizes where descriptive information about the PTSD measure was not available, the effect sizes from the point biserial formula are a reasonable approximation of the values that would have been obtained had enough information been available to use the formula to convert *r* based on a continuous measure.
+
+Estimates of $d$ are biased in small samples so were adjusted using a correction $J$, [@hedges1981],
+
+$$
+J = 1-\frac{3}{4(n_1+n_2-2) - 1},
+$$
+
+such that
+
+$$
+\begin{aligned}
+g &= J \times d \\
+SE_g &= J \times SE_d.
+\end{aligned}
+$$
+
+
+Finally, not FOA studies used different types of measures of disorganization, with some scales directly measuring disorganisation (i.e., high scores reflect greater disorganization) and others measuring organisation/coherence (i.e., low scores reflect less organization and by implication greater disorganization). The direction of effect sizes based on scales where a low score represented disorganization were reversed. Therefore, a positive $g$ always equates to greater disorganization.
+
+### Statistical model
+
+Most, but not all, studies contributed more than one effect size estimate; therefore, a random effects meta-analysis was conducted using a three level multilevel model in which effect sizes are nested within studies. The model fitted was
+
+$$
+\theta_{ij} = \mu + \sigma^2_{ij}+ \tau^2_{j} + \varepsilon_{ij}
+$$
+
+In which $\hat{\theta}_{ij}$ is an estimate of effect size $i$ nested within study $j$, $\mu$ is the overall average population effect, $\hat{\sigma}^2_{ij}$ is the within-study variability in effect sizes, and $\hat{\tau}^2_{j}$ is the between-study variability in effect sizes. All models used cluster-robust tests and confidence intervals based on a sandwich-type estimator [see @colincameron2015; @metafor] using restricted maximum likelihood (REML).
+
+Effect sizes could be classified according to whether they came from a study classified as FOA or one that was not FOA. Within FOA studies, effect sizes could quantify measures that use either detailed or global coding. Within not FOA studies effect sizes could quantify measures of disorganisation (disorganisation is represented by a high score) or a lack of organisation (disorganisation is represented by a low score). Therefore, each effect size could be classified into one of four categories: (1) FOA (detailed coding); (2) FOA (global coding); (3) not FOA (disorganisation); or (4) not FOA (organisation). The substantive hypothesis was that effects would vary across these four categories. A secondary hypothesis was that effect sizes would vary by age (adult vs. youth sample). To test these moderators, the above model was expanded to incorporate one or more fixed effect predictors ($x_n$) and their associated parameters ($\beta$)
+
+$$
+\theta_{ij} = \mu + \beta_1x_{1i} \ldots \beta_nx_{ni} + \sigma^2_{ij}+ \tau^2_{j} + \varepsilon_{ij}
+$$
+
+Specifically, the substantive hypothesis was tested by fitting a model that represented the four effect size classifications as three dummy variables with FOA (detailed coding) as the reference category. This coding resulted in parameter estimates representing the difference in effect sizes between FOA (detailed coding) and each of FOA (global coding), not FOA (disorganisation) and not FOA (organisation).
+
+$$
+\begin{aligned}
+\theta_{ij} &= \mu + \beta_1\text{FOA global vs. FOA detailed}_{i} + \beta_2\text{Not FOA disorganisation vs. FOA detailed}_{i} \\
+&\quad \ + \beta_3\text{Not FOA organisation vs. FOA detailed}_{i} + \sigma^2_{ij}+ \tau^2_{j} + \varepsilon_{ij}
+\end{aligned}
+$$
+
+Publication bias was modelled using a step function selection model. Let $w(p_i)$ denote the relative likelihood of selection given the *p*-value of a study, then the selection function is:
+
+$$
+w(p_i) = \delta_j \ \text{if } \alpha_{j-1} < p_i < \alpha_i.
+$$
+
+That is, $\delta_j$ denotes the likelihood of selection. There were too few studies to model moderate and severe publication biases using the $\delta_j$s suggested by @vevea2005 so instead one-tailed moderate and severe publication bias were modelled with fewer cut points:
+
+$$
+\begin{aligned}
+\alpha &= \{.05, .2, .5, 1\}\\
+\text{One-tailed moderate:} \ \delta_j &= \{1, .7, .6, .5\} \\
+\text{One-tailed severe:} \ \delta_j &= \{1, .5, .4, .1\} \\
+\end{aligned}
+$$
+
+```{r}
+#| eval: false
+
+# forest plot by study (i.e. averaging ESs within studies)
+# get composite ESs
+
+composite_tib <- es_tib |> 
+  group_by(foa_gp, author) |> 
+  summarize(
+    g = mean(g, na.rm = T),
+    v_g = mean(v_g, na.rm = T),
+    se_g = mean(se_g, na.rm = T),
+    n = mean(n_total, na.rm = T),
+  )
+
+# fit model
+composite_meta <- metagen(TE = g, seTE = se_g, sm = "SMD", common = F, studlab = author, data = composite_tib)
+
+# save forest plot
+pdf("forest_plot_overall.pdf", width = 9, height = 13)
+meta::forest(composite_meta, leftcols = NULL, rightcol = NULL, layout = "JAMA", hetstat = F)
+dev.off()
+
+# fit model
+foa_meta <- metagen(TE = g,
+                    seTE = se_g,
+                    sm = "SMD",
+                    studlab = author,
+                    data = composite_tib, 
+                    byvar = foa_gp,
+                    comb.fixed = TRUE)
+
+
+            
+pdf("forest_plot_foa.pdf", width = 9, height = 13)
+meta::forest(foa_meta,
+             leftcols = c("studlab", "effect.ci"),
+             leftlabs = c("Study", "g [95% CI]"),
+             smlab = "g",
+             subgroup = TRUE,
+             print.byvar = FALSE,
+             prediction = TRUE,
+             xlab = "Standarized mean difference (95% CI)",
+             layout = "JAMA",
+             hetstat = F,
+             comb.random = TRUE,
+             common = FALSE,
+             random = TRUE,
+             print.byvar = TRUE,
+             text.random.w = "Random effects model",
+             text.random = "Total random effects model",
+             sort.subgroup = TRUE,
+             print.subgroup.name = FALSE,
+             digits.mean = 2
+             )
+dev.off()
+```
+
+
+## Results
+### Overall effects
+
+```{r}
+overall_mfor <- rma.mv(yi = g, V = v_g, random = ~1|author/es_id, data = es_tib)
+overall_mforob <- robust(overall_mfor, cluster = es_tib$author)
+```
+
+@fig-fp shows the aggregated effect size within each study organised by study classification. For studies classified as FOA, when detailed coding is used effect sizes are generally above zero but more than half of studies have confidence intervals that contain zero. When global coding is used studies have positive effect sizes and confidence intervals to not cross zero. For studies classified as not FOA, when measures of disorganisation are used effect sizes are generally above zero but half of studies have confidence intervals that contain zero. When measures of organisation are used effect sizes hover around zero with all confidence intervals contain zero.
+
+
+For the overall model ignoring predictors, the between study variability was $\hat{\tau}^2_{j}$ = `r fmtx(overall_mforob$sigma2[1], 3)` and the within study variability was $\hat{\sigma}^2_{ij}$ = `r fmtx(overall_mforob$sigma2[2], 3)`. There was significant heterogeneity, `r report_het(overall_mforob)`. The overall effect was a strong positive effect that was significant `r report_pars(overall_mforob)`; the 95% confidence interval suggests that if this sample is one of the 95% that capture the population value then disorganization in PTSD groups could be anything between `r fmtx(overall_mforob$ci.lb[1], 2)` and `r fmtx(overall_mforob$ci.ub[1], 2)` standard deviations higher than in control groups.
+
+### The effect of FOA
+
+```{r}
+# filter out FOA studies with global ratings
+
+foa_mfor <- rma.mv(yi = g, V = v_g, mods = ~global_vs_detail + dis_vs_detail + org_vs_detail, random = ~1|author/es_id, data = es_tib)
+foa_mforob <- robust(foa_mfor, cluster = es_tib$author)
+
+foa_mas <- get_mas(tibble = es_tib,
+                               predictor = foa_gp,
+                               es_id = es_id,
+                               study_id = author)
+
+foa_mods <- mas_coefs(foa_mas, predictor = foa_gp)
+```
+
+@tbl-foa shows that the effect was large and significantly different from 0 for FOA studies using detailed coding ($\hat{\theta}_\text{FOA (detailed)}$ = `r fmtx(foa_mods$estimate[1])`), FOA studies using global coding ($\hat{\theta}_\text{FOA (global)}$ = `r fmtx(foa_mods$estimate[2])`) and not FOA that measured disorganisation ($\hat{\theta}_\text{Not FOA (disorganisation)}$ = `r fmtx(foa_mods$estimate[3])`), but virtually zero in not FOA studies that measured organisation ($\hat{\theta}_\text{Not FOA (organisation)}$ = `r fmtx(foa_mods$estimate[4])`).
+
+The classification of effect sizes was dummy coded such that each category of effect size was compared to ones from FOA studies that quantified measures that used detailed coding. In the model including these dummy variables the between study variability was $\hat{\sigma}^2_B$ = `r fmtx(foa_mforob$sigma2[1], 3)` and the within study variability was $\hat{\sigma}^2_W$ = `r fmtx(foa_mforob$sigma2[2], 3)`. There was significant heterogeneity, `r report_het(foa_mforob)`. The overall moderation effect was significant, `r report_mod(foa_mforob)`, indicating that effect sizes were significantly different across the four categories. @tbl-foapars shows the parameter estimates of this model. Compared to effect sizes relating to FOA studies that use detailed coding, effect sizes were (1) significantly larger in FOA studies that use global ratings; (2) significantly smaller in not FOA studies that measured organisation; and (3) not significantly different to not FOA studies that measured disorganisation.
+
+```{r}
+#| tbl-cap: "Individual meta-analyses of each study type"
+#| label: tbl-foa
+
+
+kable(foa_mods,
+      format = "markdown",
+      col.names = c("FOA", "$k$", "$\\sigma^2_B$", "$\\sigma^2_W$", "$Q$", "$df_Q$", "$p_Q$", "$\\hat{\\theta}$", "95\\% CI", "$t$", "$p$"),
+      escape = FALSE)
+```
+
+
+```{r}
+#| tbl-cap: "Parameter estimates for comparisons between study types"
+#| label: tbl-foapars
+
+report_par_tbl(foa_mforob,
+               pred_labels = c("Intercept", "FOA (Global) vs. FOA (Detailed)", "Not FOA (Disorganisation) vs. FOA (Detailed)", "Not FOA (Organisation) vs. FOA (Detailed)")
+               ) |> 
+  kable(format = "markdown",
+      col.names = c("Comparison", "$\\hat{\\theta}$", "95\\% CI", "$t$", "$p$"),
+      escape = FALSE)
+```
+
+
+
+### The effect of age group
+
+```{r}
+age_mfor <- rma.mv(yi = g, V = v_g, mod = age, random = ~1|author/es_id, data = es_tib)
+age_mforob <- robust(age_mfor, cluster = es_tib$author)
+
+age_mas <- get_mas(tibble = es_tib,
+                               predictor = age,
+                               es_id = es_id,
+                               study_id = author)
+
+age_mods <- mas_coefs(age_mas, predictor = age)
+```
+
+In the model including age group as a moderator, the between study variability was $\hat{\sigma}^2_B$ = `r fmtx(age_mforob$sigma2[1], 3)` and the within study variability was $\hat{\sigma}^2_W$ = `r fmtx(age_mforob$sigma2[2], 3)`. There was significant heterogeneity, `r report_het(age_mforob)`. The overall moderation effect was close to zero and not significant, `r report_pars(age_mforob, row = 2, mod = T)`. @tbl-age shows that the effects were very similar in ($\hat{\theta}_\text{Adult}$ = `r fmtx(age_mods$estimate[1])`) and youth ($\hat{\theta}_\text{Youth}$ = `r fmtx(age_mods$estimate[2])`) samples.
+
+
+```{r}
+#| tbl-cap: "Individual meta-analyses by age of sample"
+#| label: tbl-age
+
+kable(age_mods,
+      format = "markdown",
+      col.names = c("Age group", "$k$", "$\\sigma^2_B$", "$\\sigma^2_W$", "$Q$", "$df_Q$", "$p_Q$", "$\\hat{\\theta}$", "95\\% CI", "$t$", "$p$"),
+      escape = FALSE)
+```
+
+
+
+
+### The effect of the type of disorganization measure
+
+An analysis was done to see whether effect sizes could be predicted by whether the measure of disorganisation measured disorganisation (disorganisation is represented by a high score) or a lack of organization (disorganisation is represented by a low score) instudies from the by the Rubin/Bernsten laboratory.
+
+```{r}
+rubin_studies <- es_tib |> 
+  filter(lab == "Rubin")
+
+reverse_rubin_mfor <- rma.mv(yi = g, V = v_g, mod = high_disorganization_is, random = ~1|author/es_id, data = rubin_studies)
+reverse_rubin_mforob <- robust(reverse_rubin_mfor, cluster = rubin_studies$author)
+
+reverse_rubin_mas <- get_mas(tibble = rubin_studies,
+                               predictor = high_disorganization_is,
+                               es_id = es_id,
+                               study_id = author)
+
+reverse_rubin_mods <- mas_coefs(reverse_rubin_mas, predictor = high_disorganization_is)
+```
+
+
+In this model, the between study variability was $\hat{\sigma}^2_B$ = `r fmtx(reverse_rubin_mforob$sigma2[1], 3)` and the within study variability was $\hat{\sigma}^2_W$ = `r fmtx(reverse_rubin_mforob$sigma2[2], 3)`. There was not significant heterogeneity, `r report_het(reverse_rubin_mforob)`. The effect of the type of scale was strong but only just significant (*k* is small), `r report_pars(reverse_rubin_mforob, row = 2, mod = T)`. @tbl-reverse_rubin shows that the effect was large and significantly different from 0 when a measure of disorganization was used ($\hat{\theta}_\text{Disorganization}$ = `r fmtx(reverse_rubin_mods$estimate[2])`) but was close to zero and non-significant for studies that used measures of organization/coherance ($\hat{\theta}_\text{Organization}$ = `r fmtx(reverse_rubin_mods$estimate[1])`).
+
+
+```{r}
+#| tbl-cap: "Individual meta-analyses of each study type (Rubin/Berntsen lab only)"
+#| label: tbl-reverse_rubin
+
+
+kable(reverse_rubin_mods,
+      format = "markdown",
+      col.names = c("Disorganization", "$k$", "$\\sigma^2_B$", "$\\sigma^2_W$", "$Q$", "$df_Q$", "$p_Q$", "$\\hat{\\theta}$", "95\\% CI", "$t$", "$p$"),
+      escape = FALSE)
+```
+
+## Publication bias
+
+```{r}
+# Create aggregated data by foa_gp
+
+aggregate_tib <- es_tib |> 
+  group_by(author, foa_gp) |> 
+  summarize(
+    g = mean(g, na.rm = T),
+    v_g = mean(v_g, na.rm = T),
+    se_g = mean(se_g, na.rm = T),
+    n = mean(n_total)
+  )
+```
+
+
+
+
+```{r}
+a <- c(.05, .2, .5, 1.00)
+moderate <- c(1, .7, .6, .5)
+severe <- c(1, .5, .4, .1)
+
+pbs <- get_pbm(tibble = aggregate_tib,
+        predictor = foa_gp,
+        a = a,
+        moderate = moderate,
+        severe = severe)
+
+pb_tbl <- mas_coefs(pbs, predictor = foa_gp)
+
+```
+
+@tbl-pubbias shows the results of modelling moderate and severe one-tailed selections bias. These models should be interpreted as a sensitivity analysis in which the unadjusted effect size estimate ($\hat{\theta}$) is compared to the effect size estimate adjusted for selection bias ($\hat{\theta}_\text{Adj}$). For all types of studies and measures moderate publication bias makes little difference to the estimated effect size, whereas severe publication bias dramatically reduces the estimated effect size in all cases except for studies classified as FOA that use global coding.
+
+```{r}
+#| tbl-cap: "Selection models of publication bias"
+#| label: tbl-pubbias
+
+
+kable(pb_tbl,
+      format = "markdown",
+      col.names = c("Domain", "Selection model", " $\\hat{\\theta}$", "$\\hat{\\theta}_{Adj}$", "95\\% CI", "$p$"),
+      escape = FALSE)
+```
+
+
+## Figures
+
+![Forest plot](forest_plot_foa.pdf){#fig-fp}
+
+
+
+## References
+
+::: {#refs}
+:::

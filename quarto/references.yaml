@@ -1,0 +1,355 @@
+---
+references:
+- id: mathur2020
+  accessed: "15:42:28"
+  author:
+  - family: Mathur
+    given: Maya B.
+  - family: VanderWeele
+    given: Tyler J.
+  container-title: Epidemiology
+  DOI: 10.1097/EDE.0000000000001111
+  ISSN: 1044-3983
+  issue: 2
+  issued: 2020-03
+  key: EJCTGB47
+  language: en
+  libraryID: 1
+  page: e16-e17
+  providerKey: 2509FBBE-5BB0-44C4-B119-6083A81ED673
+  source: DOI.org (Crossref)
+  title: A simple, interpretable conversion from Pearson's correlation
+    to Cohen's \<em\>d\</em\> for continuous exposures
+  title-short: Re
+  type: article-journal
+  URL: "https://journals.lww.com/10.1097/EDE.0000000000001111"
+  volume: 31
+- id: oneill2014
+  accessed: "09:04:02"
+  author:
+  - family: O'Neill
+    given: B.
+  container-title: The American Statistician
+  container-title-short: The American Statistician
+  DOI: 10.1080/00031305.2014.966589
+  ISSN: 0003-1305, 1537-2731
+  issue: 4
+  issued: 2014-10-02
+  key: FL68N5UX
+  language: en
+  libraryID: 1
+  page: 282-296
+  providerKey: 2509FBBE-5BB0-44C4-B119-6083A81ED673
+  source: DOI.org (Crossref)
+  title: Some useful moment results in sampling problems
+  type: article-journal
+  URL: "http://www.tandfonline.com/doi/abs/10.1080/00031305.2014.966589"
+  volume: 68
+- id: hagenaars2009
+  author:
+  - family: Hagenaars
+    given: Muriel A.
+  - family: Minnen
+    given: Agnes
+    non-dropping-particle: van
+  - family: Hoogduin
+    given: Cees A.L.
+  - family: Verbraak
+    given: Marc
+  container-title: Journal of Behavior Therapy and Experimental
+    Psychiatry
+  container-title-short: Journal of Behavior Therapy and Experimental
+    Psychiatry
+  DOI: 10.1016/j.jbtep.2009.04.001
+  is-referenced-by-count: 14
+  ISSN: 0005-7916
+  issue: 3
+  issued: 2009-09
+  language: en
+  member: 78
+  page: 412-422
+  prefix: 10.1016
+  providerKey: doi
+  publisher: Elsevier BV
+  reference-count: 44
+  references-count: 44
+  score: 1
+  source: Crossref
+  subject: Psychiatry and Mental health
+  title: A transdiagnostic comparison of trauma and panic memories in
+    PTSD, panic disorder, and healthy controls
+  type: article-journal
+  URL: "http://dx.doi.org/10.1016/j.jbtep.2009.04.001"
+  volume: 40
+- id: metafor
+  author:
+  - family: Viechtbauer
+    given: Wolfgang
+  DOI: 10.18637/jss.v036.i03
+  issued: 2010
+  page: 1\--48
+  providerKey: Packages
+  title: Conducting meta-analyses in {R} with the {metafor} package
+  type: article
+  volume: 36
+- id: colincameron2015
+  author:
+  - family: Colin Cameron
+    given: A.
+  - family: Miller
+    given: Douglas L.
+  container-title: Journal of Human Resources
+  container-title-short: J. Human Resources
+  DOI: 10.3368/jhr.50.2.317
+  is-referenced-by-count: 2360
+  ISSN: 0022-166X
+  issue: 2
+  issued: 2015
+  language: en
+  member: 1939
+  page: 317-372
+  prefix: 10.3368
+  providerKey: doi
+  publisher: University of Wisconsin Press
+  reference-count: 0
+  references-count: 0
+  score: 1
+  source: Crossref
+  subject: Management of Technology and Innovation
+  title: A Practitioner's Guide to Cluster-Robust Inference
+  type: article-journal
+  URL: "http://dx.doi.org/10.3368/jhr.50.2.317"
+  volume: 50
+- id: hedges1981
+  author:
+  - family: Hedges
+    given: L.
+  container-title: Journal of Educational Statistics
+  issued: 1981
+  key: NPCTT7AK
+  libraryID: 1
+  page: 107-128
+  providerKey: 2509FBBE-5BB0-44C4-B119-6083A81ED673
+  title: Distribution theory for Glass's estimator of effect size and
+    related estimators
+  type: article-journal
+  volume: 6
+- id: cohen1988
+  author:
+  - family: Cohen
+    given: J.
+  edition: 2nd
+  issued: 1988
+  key: V3S6N2XJ
+  libraryID: 1
+  providerKey: 2509FBBE-5BB0-44C4-B119-6083A81ED673
+  publisher: Academic Press
+  publisher-place: New York
+  title: Statistical power analysis for the behavioural sciences
+  type: book
+- id: base
+  author:
+  - given: R Core Team
+  issued: 2023
+  providerKey: Packages
+  title: "R: A Language and Environment for Statistical Computing"
+  type: article
+  URL: "https://www.R-project.org/"
+- id: metafor
+  author:
+  - family: Viechtbauer
+    given: Wolfgang
+  DOI: 10.18637/jss.v036.i03
+  issued: 2010
+  page: 1\--48
+  providerKey: Packages
+  title: Conducting meta-analyses in {R} with the {metafor} package
+  type: article
+  volume: 36
+- id: metafor
+  author:
+  - family: Viechtbauer
+    given: Wolfgang
+  DOI: 10.18637/jss.v036.i03
+  issued: 2010
+  page: 1\--48
+  providerKey: Packages
+  title: Conducting meta-analyses in {R} with the {metafor} package
+  type: article
+  volume: 36
+- id: meta
+  author:
+  - family: Balduzzi
+    given: Sara
+  - family: Rücker
+    given: Gerta
+  - family: Schwarzer
+    given: Guido
+  issued: 2019
+  page: 153\--160
+  providerKey: Packages
+  title: "How to perform a meta-analysis with {R}: a practical tutorial"
+  type: article
+- id: tidyverse
+  author:
+  - family: Wickham
+    given: Hadley
+  - family: Averick
+    given: Mara
+  - family: Bryan
+    given: Jennifer
+  - family: Chang
+    given: Winston
+  - family: McGowan
+    given: Lucy D'Agostino
+  - family: François
+    given: Romain
+  - family: Grolemund
+    given: Garrett
+  - family: Hayes
+    given: Alex
+  - family: Henry
+    given: Lionel
+  - family: Hester
+    given: Jim
+  - family: Kuhn
+    given: Max
+  - family: Pedersen
+    given: Thomas Lin
+  - family: Miller
+    given: Evan
+  - family: Bache
+    given: Stephan Milton
+  - family: Müller
+    given: Kirill
+  - family: Ooms
+    given: Jeroen
+  - family: Robinson
+    given: David
+  - family: Seidel
+    given: Dana Paige
+  - family: Spinu
+    given: Vitalie
+  - family: Takahashi
+    given: Kohske
+  - family: Vaughan
+    given: Davis
+  - family: Wilke
+    given: Claus
+  - family: Woo
+    given: Kara
+  - family: Yutani
+    given: Hiroaki
+  DOI: 10.21105/joss.01686
+  issued: 2019
+  page: 1686
+  providerKey: Packages
+  title: Welcome to the {tidyverse}
+  type: article
+  volume: 4
+- id: colincameron2015
+  author:
+  - family: Colin Cameron
+    given: A.
+  - family: Miller
+    given: Douglas L.
+  container-title: Journal of Human Resources
+  container-title-short: J. Human Resources
+  DOI: 10.3368/jhr.50.2.317
+  is-referenced-by-count: 2360
+  ISSN: 0022-166X
+  issue: 2
+  issued: 2015
+  language: en
+  member: 1939
+  page: 317-372
+  prefix: 10.3368
+  providerKey: doi
+  publisher: University of Wisconsin Press
+  reference-count: 0
+  references-count: 0
+  score: 1
+  source: Crossref
+  subject: Management of Technology and Innovation
+  title: A Practitioner's Guide to Cluster-Robust Inference
+  type: article-journal
+  URL: "http://dx.doi.org/10.3368/jhr.50.2.317"
+  volume: 50
+- id: peters2007
+  accessed: "14:58:30"
+  author:
+  - family: Peters
+    given: Jaime L.
+  - family: Sutton
+    given: Alex J.
+  - family: Jones
+    given: David R.
+  - family: Abrams
+    given: Keith R.
+  - family: Rushton
+    given: Lesley
+  container-title: Statistics in Medicine
+  DOI: 10.1002/sim.2889
+  ISSN: 1097-0258
+  issue: 25
+  issued: 2007
+  key: RRFUY6UW
+  language: en
+  libraryID: 1
+  page: 4544-4562
+  providerKey: 2509FBBE-5BB0-44C4-B119-6083A81ED673
+  rights: Copyright © 2007 John Wiley & Sons, Ltd.
+  source: Wiley Online Library
+  title: Performance of the trim and fill method in the presence of
+    publication bias and between-study heterogeneity
+  type: article-journal
+  URL: "https://onlinelibrary.wiley.com/doi/abs/10.1002/sim.2889"
+  volume: 26
+- id: peters2006
+  accessed: "13:48:07"
+  author:
+  - family: Peters
+    given: Jaime L.
+  - family: Sutton
+    given: Alex J.
+  - family: Jones
+    given: David R.
+  - family: Abrams
+    given: Keith R.
+  - family: Rushton
+    given: Lesley
+  container-title: JAMA
+  container-title-short: JAMA
+  DOI: 10.1001/jama.295.6.676
+  ISSN: 0098-7484
+  issue: 6
+  issued: 2006-02-08
+  key: SE22LAA6
+  language: en
+  libraryID: 1
+  page: 676-680
+  providerKey: 2509FBBE-5BB0-44C4-B119-6083A81ED673
+  source: jamanetwork.com
+  title: Comparison of Two Methods to Detect Publication Bias in
+    Meta-analysis
+  type: article-journal
+  URL: "https://jamanetwork.com/journals/jama/fullarticle/202337"
+  volume: 295
+- id: vevea2005
+  author:
+  - family: Vevea
+    given: J. L.
+  - family: Woods
+    given: C. M.
+  container-title: Psychological Methods
+  ISSN: 1082-989X
+  issued: 2005-12
+  key: 65B5V9KD
+  libraryID: 1
+  page: 428-443
+  providerKey: 2509FBBE-5BB0-44C4-B119-6083A81ED673
+  title: "Publication bias in research synthesis: Sensitivity analysis
+    using a priori weight functions"
+  type: article-journal
+  volume: 10
+...
